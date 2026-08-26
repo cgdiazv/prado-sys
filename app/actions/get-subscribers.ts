@@ -11,13 +11,17 @@ export interface SubscriberRecord {
   lastSignIn: string | null;
   name?: string | null;
   details?: string | null;
+  plan?: string | null;
+  orgId?: string | null;
 }
 
 export async function getSubscribers(): Promise<SubscriberRecord[]> {
   try {
-    const [jobsRes, fleetRes, commerceRes] = await Promise.allSettled([
+    const [jobsRes, jobsOrgsRes, fleetRes, commerceRes] = await Promise.allSettled([
       // Prado Jobs: Authentication table
       jobsAdmin.auth.admin.listUsers(),
+      // Prado Jobs: Organizations table
+      jobsAdmin.from('organizations').select('id, owner_id, subscription_status, name'),
       // Prado Fleet: User table
       fleetAdmin.from('User').select('id, email, name, role, createdAt, updatedAt'),
       // Prado Commerce: MerchantUser table
@@ -26,18 +30,38 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
 
     const records: SubscriberRecord[] = [];
 
+    const jobsOrgsByOwner = new Map<string, { id: string; subscription_status: string | null; name: string | null }>();
+    if (jobsOrgsRes.status === 'fulfilled' && jobsOrgsRes.value.data) {
+      for (const org of jobsOrgsRes.value.data) {
+        if (org.owner_id) {
+          jobsOrgsByOwner.set(org.owner_id, {
+            id: org.id,
+            subscription_status: org.subscription_status || null,
+            name: org.name || null,
+          });
+        }
+      }
+    }
+
     // 1. Prado Jobs (Auth table)
     if (jobsRes.status === 'fulfilled' && jobsRes.value.data?.users) {
       records.push(
-        ...jobsRes.value.data.users.map((u) => ({
-          id: u.id,
-          email: u.email,
-          app: 'Jobs' as const,
-          createdAt: u.created_at,
-          status: (u.banned_until ? 'suspended' : 'active') as 'active' | 'suspended',
-          lastSignIn: u.last_sign_in_at || null,
-          details: u.role || 'Auth User',
-        }))
+        ...jobsRes.value.data.users.map((u) => {
+          const org = jobsOrgsByOwner.get(u.id);
+          const planStatus = org?.subscription_status || 'trial';
+          return {
+            id: u.id,
+            email: u.email,
+            name: org?.name || null,
+            app: 'Jobs' as const,
+            createdAt: u.created_at,
+            status: (u.banned_until ? 'suspended' : 'active') as 'active' | 'suspended',
+            lastSignIn: u.last_sign_in_at || null,
+            details: org?.name ? `${org.name} (${planStatus})` : u.role || 'Auth User',
+            plan: planStatus,
+            orgId: org?.id || null,
+          };
+        })
       );
     }
 
@@ -53,6 +77,7 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
           status: 'active' as const,
           lastSignIn: u.updatedAt || null,
           details: u.role ? `Role: ${u.role}` : null,
+          plan: u.role || 'MANAGER',
         }))
       );
     }
@@ -69,6 +94,7 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
           status: 'active' as const,
           lastSignIn: u.updatedAt || null,
           details: u.company ? `${u.company} (${u.plan || 'STANDARD'})` : u.plan || null,
+          plan: u.plan || 'STANDARD',
         }))
       );
     }
