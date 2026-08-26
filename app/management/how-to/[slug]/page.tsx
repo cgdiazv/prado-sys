@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requirePradoManagementUser } from '@/lib/pradoManagement';
 import { getHowToPlaybooks, HowToPlaybook } from '@/lib/helpdeskHowTo';
+import { logoutConsoleUser } from '@/app/actions/auth-actions';
 
 export default async function ManagementHowToDetailPage({
   params,
@@ -29,7 +30,7 @@ export default async function ManagementHowToDetailPage({
               <p className="text-[11px] uppercase tracking-wide font-semibold text-slate-500">{playbook.audience}</p>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{playbook.title}</h1>
             </div>
-            <form action={`/${locale}/auth/signout`} method="POST">
+            <form action={logoutConsoleUser}>
               <button
                 type="submit"
                 className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer text-sm"
@@ -44,10 +45,10 @@ export default async function ManagementHowToDetailPage({
           <p className="text-sm text-slate-600">{playbook.summary}</p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
-              href="/management/how-to"
+              href="/"
               className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              {isEs ? 'Volver a biblioteca de guias' : 'Back to How-To Library'}
+              {isEs ? 'Volver al panel principal' : 'Back to Main Dashboard'}
             </Link>
           </div>
         </header>
