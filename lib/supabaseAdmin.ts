@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { jobsAdmin, fleetAdmin, commerceAdmin } from './supabase-admin';
+import { jobsAdmin, fleetAdmin, commerceAdmin, erpAdmin } from './supabase-admin';
 
 export function createAdminClient() {
   const url = process.env.JOBS_SUPABASE_URL || process.env.NEXT_PUBLIC_CORE_SUPABASE_URL || '';
@@ -10,4 +10,4 @@ export function createAdminClient() {
   });
 }
 
-export { jobsAdmin, fleetAdmin, commerceAdmin };
+export { jobsAdmin, fleetAdmin, commerceAdmin, erpAdmin };

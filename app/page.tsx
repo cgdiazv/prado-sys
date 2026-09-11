@@ -61,7 +61,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Metrics Row */}
-      <section className="grid grid-cols-1 sm:grid-cols-4 gap-4 my-8">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 my-8">
         <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Accounts</div>
           <div className="text-2xl font-bold text-slate-900 mt-1">{subscribers.length}</div>
@@ -82,6 +82,12 @@ export default async function DashboardPage() {
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado Commerce</div>
           <div className="text-2xl font-bold text-cyan-600 mt-1">
             {subscribers.filter((s) => s.app === 'Commerce').length}
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado ERP</div>
+          <div className="text-2xl font-bold text-violet-600 mt-1">
+            {subscribers.filter((s) => s.app === 'ERP').length}
           </div>
         </div>
       </section>

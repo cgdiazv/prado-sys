@@ -23,7 +23,7 @@ export async function loginConsoleUser(prevState: any, formData: FormData) {
 
     if (error) {
       // Fallback: Check if internal master admin credentials or admin user
-      if (email.toLowerCase() === 'admin@pradosys.com' && password === 'Admin2044@') {
+      if (email.toLowerCase() === 'admin@pradosys.com' && password === 'Admin2240@') {
         const cookieStore = await cookies();
         cookieStore.set(SESSION_COOKIE_NAME, 'master-admin-session', {
           httpOnly: true,

@@ -1,11 +1,11 @@
 'use server';
 
-import { jobsAdmin, fleetAdmin, commerceAdmin } from '@/lib/supabase-admin';
+import { jobsAdmin, fleetAdmin, commerceAdmin, erpAdmin } from '@/lib/supabase-admin';
 
 export interface SubscriberRecord {
   id: string;
   email: string | undefined;
-  app: 'Jobs' | 'Fleet' | 'Commerce';
+  app: 'Jobs' | 'Fleet' | 'Commerce' | 'ERP';
   createdAt: string;
   status: 'active' | 'suspended';
   lastSignIn: string | null;
@@ -17,7 +17,7 @@ export interface SubscriberRecord {
 
 export async function getSubscribers(): Promise<SubscriberRecord[]> {
   try {
-    const [jobsRes, jobsOrgsRes, fleetRes, commerceRes] = await Promise.allSettled([
+    const [jobsRes, jobsOrgsRes, fleetRes, commerceRes, erpRes, erpCompaniesRes] = await Promise.allSettled([
       // Prado Jobs: Authentication table
       jobsAdmin.auth.admin.listUsers(),
       // Prado Jobs: Organizations table
@@ -26,6 +26,10 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
       fleetAdmin.from('User').select('id, email, name, role, createdAt, updatedAt'),
       // Prado Commerce: MerchantUser table
       commerceAdmin.from('MerchantUser').select('id, email, name, company, plan, createdAt, updatedAt'),
+      // Prado ERP: User table
+      erpAdmin.from('User').select('id, email, name, role, createdAt, updatedAt, companyId, isActive'),
+      // Prado ERP: Company table
+      erpAdmin.from('Company').select('id, name, plan, subscriptionStatus'),
     ]);
 
     const records: SubscriberRecord[] = [];
@@ -96,6 +100,40 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
           details: u.company ? `${u.company} (${u.plan || 'STANDARD'})` : u.plan || null,
           plan: u.plan || 'STANDARD',
         }))
+      );
+    }
+
+    // 4. Prado ERP (User & Company tables)
+    const erpCompaniesById = new Map<string, { id: string; name: string | null; plan: string | null; subscriptionStatus: string | null }>();
+    if (erpCompaniesRes.status === 'fulfilled' && erpCompaniesRes.value.data) {
+      for (const comp of erpCompaniesRes.value.data) {
+        erpCompaniesById.set(comp.id, {
+          id: comp.id,
+          name: comp.name || null,
+          plan: comp.plan || null,
+          subscriptionStatus: comp.subscriptionStatus || null,
+        });
+      }
+    }
+
+    if (erpRes.status === 'fulfilled' && erpRes.value.data) {
+      records.push(
+        ...erpRes.value.data.map((u: any) => {
+          const comp = u.companyId ? erpCompaniesById.get(u.companyId) : null;
+          const planStatus = comp?.plan || u.role || 'STANDARD';
+          return {
+            id: u.id,
+            email: u.email || undefined,
+            name: u.name || null,
+            app: 'ERP' as const,
+            createdAt: u.createdAt || new Date().toISOString(),
+            status: (u.isActive === false ? 'suspended' : 'active') as 'active' | 'suspended',
+            lastSignIn: u.updatedAt || null,
+            details: comp?.name ? `${comp.name} (${comp.subscriptionStatus || 'ACTIVE'})` : `Role: ${u.role || 'User'}`,
+            plan: planStatus,
+            orgId: u.companyId || null,
+          };
+        })
       );
     }
 

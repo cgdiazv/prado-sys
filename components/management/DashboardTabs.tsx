@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Users, MessageSquare, BookOpen, Search, ShieldCheck, ArrowRight, Edit3 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Users, MessageSquare, BookOpen, Search, ShieldCheck, ArrowRight, Edit3, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import HelpdeskInbox, { HelpdeskTicket, TicketComment, TicketEvent } from './HelpdeskInbox';
 import HelpdeskHowToAssistant from './HelpdeskHowToAssistant';
 import GeneralInternalTicketModal from './GeneralInternalTicketModal';
@@ -17,20 +17,70 @@ interface DashboardTabsProps {
   };
 }
 
+type SortField = 'user' | 'app' | 'plan' | 'status' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
+
 export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<'subscribers' | 'helpdesk' | 'how-to'>('subscribers');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscriber, setEditingSubscriber] = useState<SubscriberRecord | null>(null);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const filteredSubscribers = subscribers.filter(
-    (s) =>
-      s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.details && s.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.plan && s.plan.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredSubscribers = useMemo(() => {
+    return subscribers.filter(
+      (s) =>
+        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.details && s.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.plan && s.plan.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [subscribers, searchTerm]);
+
+  const sortedSubscribers = useMemo(() => {
+    return [...filteredSubscribers].sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'user') {
+        const aVal = (a.name || a.email || a.id).toLowerCase();
+        const bVal = (b.name || b.email || b.id).toLowerCase();
+        comparison = aVal.localeCompare(bVal);
+      } else if (sortField === 'app') {
+        comparison = a.app.localeCompare(b.app);
+      } else if (sortField === 'plan') {
+        const aPlan = (a.plan || '').toLowerCase();
+        const bPlan = (b.plan || '').toLowerCase();
+        comparison = aPlan.localeCompare(bPlan);
+      } else if (sortField === 'status') {
+        comparison = a.status.localeCompare(b.status);
+      } else if (sortField === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredSubscribers, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'createdAt' ? 'desc' : 'asc');
+    }
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 opacity-50 group-hover:opacity-100 transition" />;
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 text-slate-900" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-slate-900" />
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -102,16 +152,71 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  <th className="p-4">User / UUID</th>
-                  <th className="p-4">App Target</th>
-                  <th className="p-4">Plan / Role</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">Created Date</th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('user')}
+                      className={`group inline-flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider transition cursor-pointer select-none ${
+                        sortField === 'user' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>User / UUID</span>
+                      {renderSortIcon('user')}
+                    </button>
+                  </th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('app')}
+                      className={`group inline-flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider transition cursor-pointer select-none ${
+                        sortField === 'app' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>App Target</span>
+                      {renderSortIcon('app')}
+                    </button>
+                  </th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('plan')}
+                      className={`group inline-flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider transition cursor-pointer select-none ${
+                        sortField === 'plan' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>Plan / Role</span>
+                      {renderSortIcon('plan')}
+                    </button>
+                  </th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('status')}
+                      className={`group inline-flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider transition cursor-pointer select-none ${
+                        sortField === 'status' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>Status</span>
+                      {renderSortIcon('status')}
+                    </button>
+                  </th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('createdAt')}
+                      className={`group inline-flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider transition cursor-pointer select-none ${
+                        sortField === 'createdAt' ? 'text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>Created Date</span>
+                      {renderSortIcon('createdAt')}
+                    </button>
+                  </th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredSubscribers.map((user) => (
+                {sortedSubscribers.map((user) => (
                   <tr key={`${user.app}-${user.id}`} className="hover:bg-slate-50/75 transition">
                     <td className="p-4">
                       <div className="font-medium text-slate-900">{user.name || user.email || 'No email provided'}</div>
@@ -130,7 +235,9 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : user.app === 'Fleet'
                             ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                            : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                            : user.app === 'Commerce'
+                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                            : 'bg-violet-50 text-violet-700 border border-violet-200'
                         }`}
                       >
                         {user.app}

@@ -17,3 +17,9 @@ export const commerceAdmin = createClient(
     process.env.COMMERCE_SERVICE_ROLE_KEY || '',
     { auth: { autoRefreshToken: false, persistSession: false } }
 );
+
+export const erpAdmin = createClient(
+    process.env.ERP_SUPABASE_URL || '',
+    process.env.ERP_SUPABASE_ROLE_KEY || process.env.ERP_SERVICE_ROLE_KEY || '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+);

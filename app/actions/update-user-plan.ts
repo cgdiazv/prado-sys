@@ -1,11 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { jobsAdmin, fleetAdmin, commerceAdmin } from '@/lib/supabase-admin';
+import { jobsAdmin, fleetAdmin, commerceAdmin, erpAdmin } from '@/lib/supabase-admin';
 
 export interface UpdatePlanInput {
   userId: string;
-  app: 'Jobs' | 'Fleet' | 'Commerce';
+  app: 'Jobs' | 'Fleet' | 'Commerce' | 'ERP';
   newPlan: string;
   orgId?: string | null;
 }
@@ -77,6 +77,32 @@ export async function updateUserPlan(input: UpdatePlanInput): Promise<UpdatePlan
 
       if (userErr) {
         console.warn('Could not update user_metadata in Auth:', userErr.message);
+      }
+    } else if (app === 'ERP') {
+      if (orgId) {
+        const { error: compErr } = await erpAdmin
+          .from('Company')
+          .update({
+            plan: newPlan,
+            updatedAt: new Date().toISOString(),
+          })
+          .eq('id', orgId);
+
+        if (compErr) {
+          return { success: false, error: compErr.message };
+        }
+      }
+
+      const { error: userErr } = await erpAdmin
+        .from('User')
+        .update({
+          role: newPlan,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      if (userErr && !orgId) {
+        return { success: false, error: userErr.message };
       }
     }
 

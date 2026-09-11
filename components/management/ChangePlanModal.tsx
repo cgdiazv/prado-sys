@@ -35,6 +35,13 @@ const COMMERCE_PLAN_OPTIONS = [
   { value: 'ENTERPRISE', label: 'Enterprise', desc: 'Custom enterprise volume tier' },
 ];
 
+const ERP_PLAN_OPTIONS = [
+  { value: 'standard', label: 'Standard', desc: 'Standard business tier' },
+  { value: 'empresarial', label: 'Empresarial', desc: 'Enterprise business tier' },
+  { value: 'pro', label: 'Pro', desc: 'Professional ERP tier' },
+  { value: 'super_admin', label: 'Super Admin', desc: 'Full administrative role' },
+];
+
 export default function ChangePlanModal({
   isOpen,
   onClose,
@@ -61,7 +68,9 @@ export default function ChangePlanModal({
       ? JOBS_PLAN_OPTIONS
       : subscriber.app === 'Fleet'
       ? FLEET_ROLE_OPTIONS
-      : COMMERCE_PLAN_OPTIONS;
+      : subscriber.app === 'Commerce'
+      ? COMMERCE_PLAN_OPTIONS
+      : ERP_PLAN_OPTIONS;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
