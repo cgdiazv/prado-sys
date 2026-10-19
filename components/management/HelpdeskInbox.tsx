@@ -477,7 +477,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
         <div className="p-3 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-800">Presets</span>
+              <span className="text-xs font-bold text-slate-800">Respuestas Rápidas</span>
               <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-mono">
                 {filteredPresets.length}
               </span>
@@ -492,7 +492,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
               type="text"
               value={presetSearch}
               onChange={(e) => setPresetSearch(e.target.value)}
-              placeholder="Buscar preset..."
+              placeholder="Buscar respuesta rápida..."
               className="w-full text-xs pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             />
           </div>
