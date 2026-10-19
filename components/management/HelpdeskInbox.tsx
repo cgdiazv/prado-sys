@@ -1,7 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, AlertCircle, Clock, CheckCircle, ShieldAlert, Send, Filter, UserCheck, RefreshCw } from 'lucide-react';
+import {
+  MessageSquare,
+  AlertCircle,
+  Clock,
+  CheckCircle,
+  ShieldAlert,
+  Send,
+  Filter,
+  UserCheck,
+  RefreshCw,
+  Sparkles,
+  Search,
+  Check,
+  CornerDownLeft,
+} from 'lucide-react';
 import { addHelpdeskTicketComment, updateHelpdeskTicketState, getHelpdeskInboxSnapshot } from '@/app/management/actions';
 
 export interface HelpdeskTicket {
@@ -42,6 +56,115 @@ export interface TicketEvent {
   created_at?: string | null;
 }
 
+interface PresetMessage {
+  id: string;
+  category: 'greetings' | 'in_progress' | 'resolution' | 'closure';
+  categoryLabel: string;
+  title: string;
+  text: string;
+}
+
+const PRESET_MESSAGES: PresetMessage[] = [
+  // Greetings / Saludos
+  {
+    id: 'greet-standard',
+    category: 'greetings',
+    categoryLabel: 'Saludo',
+    title: 'Saludo formal',
+    text: 'Hola, gracias por comunicarte con el equipo de soporte de Prado Systems. ¿En qué podemos ayudarte hoy?',
+  },
+  {
+    id: 'greet-personal',
+    category: 'greetings',
+    categoryLabel: 'Saludo',
+    title: 'Presentación agente',
+    text: 'Hola, mi nombre es Carlos del equipo de soporte. ¿Cómo te puedo ayudar?',
+  },
+  {
+    id: 'greet-welcome',
+    category: 'greetings',
+    categoryLabel: 'Saludo',
+    title: 'Bienvenida',
+    text: '¡Hola! Bienvenido a Prado Systems. Estamos atentos a tus consultas para brindarte la mejor asistencia.',
+  },
+
+  // In-progress & Follow-up / Seguimiento
+  {
+    id: 'prog-review',
+    category: 'in_progress',
+    categoryLabel: 'Seguimiento',
+    title: 'En revisión',
+    text: 'Estamos revisando tu caso en este momento. Te daremos una actualización en unos minutos, por favor permanece en línea.',
+  },
+  {
+    id: 'prog-screenshot',
+    category: 'in_progress',
+    categoryLabel: 'Seguimiento',
+    title: 'Solicitar captura',
+    text: '¿Podrías por favor compartirnos una captura de pantalla o más detalles del mensaje que visualizas en pantalla?',
+  },
+  {
+    id: 'prog-db-check',
+    category: 'in_progress',
+    categoryLabel: 'Seguimiento',
+    title: 'Verificando en sistema',
+    text: 'Estamos consultando los registros en la base de datos de Prado para verificar tu configuración. Danos un momento por favor.',
+  },
+  {
+    id: 'prog-escalate',
+    category: 'in_progress',
+    categoryLabel: 'Seguimiento',
+    title: 'Escalamiento técnico',
+    text: 'Hemos derivado tu consulta a nuestro equipo técnico especializado. Te contactaremos por este medio en cuanto tengamos novedades.',
+  },
+
+  // Resolution / Solución
+  {
+    id: 'res-fixed',
+    category: 'resolution',
+    categoryLabel: 'Solución',
+    title: 'Problema solucionado',
+    text: 'El inconveniente ha sido resuelto exitosamente. ¿Podrías confirmar si ya puedes ingresar y operar con normalidad?',
+  },
+  {
+    id: 'res-plan-applied',
+    category: 'resolution',
+    categoryLabel: 'Solución',
+    title: 'Cambio de plan aplicado',
+    text: 'Hemos aplicado los cambios a tu suscripción y plan en Prado Systems. Por favor refresca tu sesión para verificarlo.',
+  },
+  {
+    id: 'res-cache',
+    category: 'resolution',
+    categoryLabel: 'Solución',
+    title: 'Recargar sesión / caché',
+    text: 'Por favor intenta recargar la página (Ctrl + F5 o Cmd + Shift + R) o cerrar y volver a iniciar sesión para actualizar los cambios.',
+  },
+
+  // Closure / Cierre
+  {
+    id: 'close-goodbye',
+    category: 'closure',
+    categoryLabel: 'Cierre',
+    title: 'Cierre cordial',
+    text: 'Nos alegra haberte ayudado. Damos por concluido este ticket de soporte. ¡Que tengas un excelente día!',
+  },
+  {
+    id: 'close-anything-else',
+    category: 'closure',
+    categoryLabel: 'Cierre',
+    title: '¿Algo adicional?',
+    text: '¿Hay alguna otra consulta o requerimiento en el que te podamos colaborar antes de cerrar este ticket?',
+  },
+  {
+    id: 'close-feedback',
+    category: 'closure',
+    categoryLabel: 'Cierre',
+    title: 'Agradecimiento final',
+    text: 'Gracias por comunicarte con Prado Systems. Estamos a tu disposición siempre que lo necesites. ¡Hasta pronto!',
+  },
+];
+
 interface HelpdeskInboxProps {
   tickets?: HelpdeskTicket[];
   comments?: TicketComment[];
@@ -68,7 +191,13 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Presets state
+  const [presetCategory, setPresetCategory] = useState<string>('all');
+  const [presetSearch, setPresetSearch] = useState<string>('');
+  const [lastInsertedId, setLastInsertedId] = useState<string | null>(null);
+
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   // Sync with prop updates if server re-renders
   useEffect(() => {
@@ -133,6 +262,16 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   const activeTicket = tickets.find((t) => t.id === selectedTicketId) || filteredTickets[0];
   const activeComments = activeTicket ? comments.filter((c) => c.ticket_id === activeTicket.id) : [];
 
+  // Filter presets
+  const filteredPresets = PRESET_MESSAGES.filter((p) => {
+    const matchesCategory = presetCategory === 'all' || p.category === presetCategory;
+    const matchesSearch =
+      !presetSearch.trim() ||
+      p.title.toLowerCase().includes(presetSearch.toLowerCase()) ||
+      p.text.toLowerCase().includes(presetSearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
   // Auto-scroll to bottom of conversation
   useEffect(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -154,11 +293,10 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
     }
   };
 
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeTicket || !newComment.trim() || isSubmitting) return;
+  const submitCommentText = async (textToSend: string) => {
+    if (!activeTicket || !textToSend.trim() || isSubmitting) return;
 
-    const messageText = newComment.trim();
+    const messageText = textToSend.trim();
     const tempId = `temp-${Date.now()}`;
     const optimisticComment: TicketComment = {
       id: tempId,
@@ -201,6 +339,28 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
     }
   };
 
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitCommentText(newComment);
+  };
+
+  const handleInsertPreset = (preset: PresetMessage) => {
+    setNewComment((prev) => (prev.trim() ? `${prev.trim()}\n${preset.text}` : preset.text));
+    setLastInsertedId(preset.id);
+    setTimeout(() => {
+      setLastInsertedId((curr) => (curr === preset.id ? null : curr));
+    }, 1800);
+    commentInputRef.current?.focus();
+  };
+
+  const handleSendPresetDirectly = async (preset: PresetMessage) => {
+    if (!activeTicket) {
+      alert('Por favor selecciona un ticket primero.');
+      return;
+    }
+    await submitCommentText(preset.text);
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (!activeTicket) return;
     setTickets((prev) =>
@@ -217,9 +377,9 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   };
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[500px]">
-      {/* Sidebar List */}
-      <div className="w-full md:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50">
+    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[520px]">
+      {/* Sidebar List - Tickets */}
+      <div className="w-full md:w-64 lg:w-72 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0">
         <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-slate-800">Tickets</span>
@@ -273,7 +433,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-900 truncate max-w-[170px]">
+                    <span className="text-xs font-semibold text-slate-900 truncate max-w-[150px]">
                       {ticket.subject}
                     </span>
                     <div className="flex items-center gap-1">
@@ -313,8 +473,139 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
         </div>
       </div>
 
+      {/* Presets / Quick Replies Column */}
+      <div className="w-full md:w-64 lg:w-72 border-r border-slate-200 flex flex-col bg-slate-50/40 shrink-0">
+        <div className="p-3 border-b border-slate-200 bg-white">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-xs font-bold text-slate-800">Presets</span>
+              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-mono">
+                {filteredPresets.length}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400">Clic para insertar</span>
+          </div>
+
+          {/* Search Presets */}
+          <div className="relative mb-2">
+            <Search className="h-3 w-3 text-slate-400 absolute left-2 top-2" />
+            <input
+              type="text"
+              value={presetSearch}
+              onChange={(e) => setPresetSearch(e.target.value)}
+              placeholder="Buscar preset..."
+              className="w-full text-xs pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+            />
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px]">
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'greetings', label: 'Saludos' },
+              { id: 'in_progress', label: 'Seguimiento' },
+              { id: 'resolution', label: 'Solución' },
+              { id: 'closure', label: 'Cierre' },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setPresetCategory(cat.id)}
+                className={`px-2 py-0.5 rounded font-medium whitespace-nowrap transition cursor-pointer ${
+                  presetCategory === cat.id
+                    ? 'bg-slate-800 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Presets List */}
+        <div className="divide-y divide-slate-100 overflow-y-auto max-h-[550px] flex-1 p-2 space-y-2">
+          {filteredPresets.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-400">
+              No hay respuestas que coincidan con la búsqueda.
+            </div>
+          ) : (
+            filteredPresets.map((preset) => {
+              const isRecentlyInserted = lastInsertedId === preset.id;
+
+              const badgeStyle =
+                preset.category === 'greetings'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : preset.category === 'in_progress'
+                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                  : preset.category === 'resolution'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200';
+
+              return (
+                <div
+                  key={preset.id}
+                  className={`group relative p-2.5 rounded-lg border transition bg-white shadow-xs hover:border-slate-300 hover:shadow-sm flex flex-col gap-1.5 ${
+                    isRecentlyInserted ? 'border-emerald-400 ring-1 ring-emerald-300' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[11px] font-semibold text-slate-900 group-hover:text-sky-700 transition">
+                      {preset.title}
+                    </span>
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-medium border ${badgeStyle}`}>
+                      {preset.categoryLabel}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                    {preset.text}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleInsertPreset(preset)}
+                      className={`text-[10px] font-medium flex items-center gap-1 transition cursor-pointer px-1.5 py-0.5 rounded ${
+                        isRecentlyInserted
+                          ? 'text-emerald-700 bg-emerald-50 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                      title="Insertar en la caja de texto"
+                    >
+                      {isRecentlyInserted ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-600" />
+                          <span>¡Insertado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <CornerDownLeft className="h-3 w-3 text-slate-400 group-hover:text-slate-600" />
+                          <span>Insertar</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendPresetDirectly(preset)}
+                      disabled={isSubmitting || !activeTicket}
+                      className="text-[10px] font-medium text-sky-700 hover:text-sky-900 hover:bg-sky-50 px-1.5 py-0.5 rounded transition flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                      title="Enviar directamente al cliente"
+                    >
+                      <Send className="h-2.5 w-2.5" />
+                      <span>Enviar</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {/* Ticket Details & Chat Panel */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-w-0">
         {activeTicket ? (
           <>
             {/* Header */}
@@ -389,6 +680,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
             {/* Response Input */}
             <form onSubmit={handleAddComment} className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
               <input
+                ref={commentInputRef}
                 type="text"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
@@ -415,3 +707,4 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
     </div>
   );
 }
+
