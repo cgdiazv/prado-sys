@@ -60,40 +60,10 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {/* Metrics Row */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 my-8">
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Accounts</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{subscribers.length}</div>
-        </div>
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado Jobs</div>
-          <div className="text-2xl font-bold text-emerald-600 mt-1">
-            {subscribers.filter((s) => s.app === 'Jobs').length}
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado Fleet</div>
-          <div className="text-2xl font-bold text-amber-500 mt-1">
-            {subscribers.filter((s) => s.app === 'Fleet').length}
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado Commerce</div>
-          <div className="text-2xl font-bold text-cyan-600 mt-1">
-            {subscribers.filter((s) => s.app === 'Commerce').length}
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prado ERP</div>
-          <div className="text-2xl font-bold text-violet-600 mt-1">
-            {subscribers.filter((s) => s.app === 'ERP').length}
-          </div>
-        </div>
-      </section>
-
       {/* Interactive Tabs Section */}
-      <DashboardTabs subscribers={subscribers} helpdeskData={helpdeskData} />
+      <div className="mt-6">
+        <DashboardTabs subscribers={subscribers} helpdeskData={helpdeskData} />
+      </div>
     </main>
   );
 }

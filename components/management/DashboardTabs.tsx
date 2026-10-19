@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, MessageSquare, BookOpen, Search, ShieldCheck, ArrowRight, Edit3, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import HelpdeskInbox, { HelpdeskTicket, TicketComment, TicketEvent } from './HelpdeskInbox';
 import HelpdeskHowToAssistant from './HelpdeskHowToAssistant';
@@ -25,19 +25,56 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscriber, setEditingSubscriber] = useState<SubscriberRecord | null>(null);
+  const [selectedApp, setSelectedApp] = useState<'all' | 'Jobs' | 'Fleet' | 'Commerce' | 'ERP'>('all');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [subscribersList, setSubscribersList] = useState<SubscriberRecord[]>(subscribers);
+
+  useEffect(() => {
+    setSubscribersList(subscribers);
+  }, [subscribers]);
+
+  const handlePlanUpdated = (userId: string, app: string, newPlan: string) => {
+    setSubscribersList((prev) =>
+      prev.map((sub) =>
+        sub.id === userId && sub.app === app
+          ? {
+              ...sub,
+              plan: newPlan,
+              details: sub.name ? `${sub.name} (${newPlan})` : `Plan: ${newPlan}`,
+            }
+          : sub
+      )
+    );
+  };
+
+  const appCounts = useMemo(() => {
+    return {
+      all: subscribersList.length,
+      Jobs: subscribersList.filter((s) => s.app === 'Jobs').length,
+      Fleet: subscribersList.filter((s) => s.app === 'Fleet').length,
+      Commerce: subscribersList.filter((s) => s.app === 'Commerce').length,
+      ERP: subscribersList.filter((s) => s.app === 'ERP').length,
+    };
+  }, [subscribersList]);
 
   const filteredSubscribers = useMemo(() => {
-    return subscribers.filter(
-      (s) =>
-        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.details && s.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.plan && s.plan.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [subscribers, searchTerm]);
+    return subscribersList.filter((s) => {
+      const matchesApp = selectedApp === 'all' || s.app === selectedApp;
+      if (!matchesApp) return false;
+
+      const term = searchTerm.toLowerCase();
+      if (!term) return true;
+
+      return (
+        s.id.toLowerCase().includes(term) ||
+        (s.email && s.email.toLowerCase().includes(term)) ||
+        (s.name && s.name.toLowerCase().includes(term)) ||
+        (s.details && s.details.toLowerCase().includes(term)) ||
+        (s.plan && s.plan.toLowerCase().includes(term))
+      );
+    });
+  }, [subscribersList, searchTerm, selectedApp]);
 
   const sortedSubscribers = useMemo(() => {
     return [...filteredSubscribers].sort((a, b) => {
@@ -133,17 +170,35 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
       {activeTab === 'subscribers' && (
         <section className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, plan, or UUID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-              />
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-1">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, plan, or UUID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+                />
+              </div>
+
+              {/* Selector con las 4 apps */}
+              <div className="relative w-full sm:w-56">
+                <select
+                  value={selectedApp}
+                  onChange={(e) => setSelectedApp(e.target.value as any)}
+                  className="w-full py-2 px-3 border border-slate-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white text-slate-800 cursor-pointer shadow-xs"
+                >
+                  <option value="all">Todas las apps ({appCounts.all})</option>
+                  <option value="Jobs">Prado Jobs ({appCounts.Jobs})</option>
+                  <option value="Fleet">Prado Fleet ({appCounts.Fleet})</option>
+                  <option value="Commerce">Prado Commerce ({appCounts.Commerce})</option>
+                  <option value="ERP">Prado ERP ({appCounts.ERP})</option>
+                </select>
+              </div>
             </div>
-            <div className="text-xs text-slate-500 font-mono">
+
+            <div className="text-xs text-slate-500 font-mono whitespace-nowrap">
               Showing {filteredSubscribers.length} of {subscribers.length} accounts
             </div>
           </div>
@@ -321,6 +376,11 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
         isOpen={Boolean(editingSubscriber)}
         subscriber={editingSubscriber}
         onClose={() => setEditingSubscriber(null)}
+        onPlanUpdated={(newPlan) => {
+          if (editingSubscriber) {
+            handlePlanUpdated(editingSubscriber.id, editingSubscriber.app, newPlan);
+          }
+        }}
       />
     </div>
   );

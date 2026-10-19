@@ -46,6 +46,14 @@ function managementRedirect(
   redirect(`${basePath}${query ? `?${query}` : ''}`);
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function toSafeUuid(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const str = String(id).trim();
+  return UUID_REGEX.test(str) ? str : null;
+}
+
 async function requireManagementSession(locale: string = 'en') {
   try {
     const supabase = await createClient();
@@ -62,7 +70,7 @@ async function requireManagementSession(locale: string = 'en') {
 
   return {
     id: 'console-admin',
-    email: 'admin@prado.com',
+    email: 'support@pradojob.com',
     role: 'management_agent',
   };
 }
@@ -190,8 +198,8 @@ export async function createHelpdeskTicket(formData: FormData) {
     .from('helpdesk_tickets')
     .insert({
       organization_id: organizationId,
-      requested_by_user_id: user.id,
-      requested_by_email: user.email || null,
+      requested_by_user_id: toSafeUuid(user.id),
+      requested_by_email: user.email || 'support@pradojob.com',
       subject,
       description,
       priority,
@@ -200,7 +208,7 @@ export async function createHelpdeskTicket(formData: FormData) {
       waiting_on: 'none',
       unread_for_agent_count: 0,
       unread_for_user_count: 0,
-      last_comment_author_email: user.email || null,
+      last_comment_author_email: user.email || 'support@pradojob.com',
     })
     .select('id')
     .single();
@@ -217,11 +225,12 @@ export async function createHelpdeskTicket(formData: FormData) {
     event_note: isGeneralScope
       ? 'Escalated from management console (general/internal ticket).'
       : `Escalated from management console for ${organizationName || organizationId}`,
-    actor_user_id: user.id,
-    actor_email: user.email || null,
+    actor_user_id: toSafeUuid(user.id),
+    actor_email: user.email || 'support@pradojob.com',
     metadata: { priority, ticket_scope: isGeneralScope ? 'general' : 'subscriber' },
   });
 
+  revalidatePath('/');
   revalidatePath(`/${locale}/management`);
   managementRedirect(locale, 'ticket-created', undefined, organizationIdForRedirect, redirectTo);
 }
@@ -269,8 +278,8 @@ export async function updateHelpdeskTicket(formData: FormData) {
     ticket_id: ticketId,
     event_type: 'updated',
     event_note: 'Ticket details updated from management console.',
-    actor_user_id: user.id,
-    actor_email: user.email || null,
+    actor_user_id: toSafeUuid(user.id),
+    actor_email: user.email || 'support@pradojob.com',
     metadata: {
       status,
       priority,
@@ -279,58 +288,65 @@ export async function updateHelpdeskTicket(formData: FormData) {
     },
   });
 
+  revalidatePath('/');
   revalidatePath(`/${locale}/management`);
   managementRedirect(locale, 'ticket-updated', undefined, undefined, redirectTo);
 }
 
 export async function addHelpdeskTicketComment(formData: FormData) {
   const locale = String(formData.get('locale') || 'en');
-  const redirectTo: 'management' = 'management';
   const ticketId = String(formData.get('ticketId') || '').trim();
   const comment = String(formData.get('comment') || '').trim();
 
   const user = await requireManagementSession(locale);
 
   if (!ticketId) {
-    managementRedirect(locale, 'error', 'Ticket ID is required.', undefined, redirectTo);
+    return { error: 'Ticket ID is required.' };
   }
 
   if (!comment) {
-    managementRedirect(locale, 'error', 'Comment cannot be empty.', undefined, redirectTo);
+    return { error: 'Comment cannot be empty.' };
   }
 
   const supabaseAdmin = createAdminClient();
+  const authorUserId = toSafeUuid(user.id);
+  const authorEmail = user.email || 'support@pradojob.com';
 
-  const { error: commentError } = await supabaseAdmin
+  const { data: commentData, error: commentError } = await supabaseAdmin
     .from('helpdesk_ticket_comments')
     .insert({
       ticket_id: ticketId,
-      author_user_id: user.id,
-      author_email: user.email || null,
+      author_user_id: authorUserId,
+      author_email: authorEmail,
       comment,
-    });
+    })
+    .select()
+    .single();
 
   if (commentError) {
-    managementRedirect(locale, 'error', commentError.message, undefined, redirectTo);
+    return { error: commentError.message };
   }
 
   await applyTicketMessageState({
     ticketId,
     role: 'agent',
-    authorEmail: user.email || null,
+    authorEmail,
   });
 
   await supabaseAdmin.from('helpdesk_ticket_events').insert({
     ticket_id: ticketId,
     event_type: 'comment',
     event_note: comment,
-    actor_user_id: user.id,
-    actor_email: user.email || null,
-    metadata: {},
+    actor_user_id: authorUserId,
+    actor_email: authorEmail,
+    metadata: { source: 'helpdesk_inbox' },
   });
 
+  revalidatePath('/');
+  revalidatePath('/management');
   revalidatePath(`/${locale}/management`);
-  managementRedirect(locale, 'comment-added', undefined, undefined, redirectTo);
+
+  return { success: true, comment: commentData };
 }
 
 function isAllowedHelpdeskStatus(status: string) {
@@ -439,15 +455,19 @@ export async function sendHelpdeskAgentReply({
   }
 
   const supabaseAdmin = createAdminClient();
+  const authorUserId = toSafeUuid(user.id);
+  const authorEmail = user.email || 'support@pradojob.com';
 
-  const { error: commentError } = await supabaseAdmin
+  const { data: commentData, error: commentError } = await supabaseAdmin
     .from('helpdesk_ticket_comments')
     .insert({
       ticket_id: normalizedTicketId,
-      author_user_id: user.id,
-      author_email: user.email || null,
+      author_user_id: authorUserId,
+      author_email: authorEmail,
       comment: normalizedComment,
-    });
+    })
+    .select()
+    .single();
 
   if (commentError) {
     return { error: commentError.message };
@@ -456,21 +476,23 @@ export async function sendHelpdeskAgentReply({
   await applyTicketMessageState({
     ticketId: normalizedTicketId,
     role: 'agent',
-    authorEmail: user.email || null,
+    authorEmail,
   });
 
   await supabaseAdmin.from('helpdesk_ticket_events').insert({
     ticket_id: normalizedTicketId,
     event_type: 'comment',
     event_note: normalizedComment,
-    actor_user_id: user.id,
-    actor_email: user.email || null,
+    actor_user_id: authorUserId,
+    actor_email: authorEmail,
     metadata: { source: 'helpdesk_inbox' },
   });
 
+  revalidatePath('/');
+  revalidatePath('/management');
   revalidatePath(`/${locale}/management`);
 
-  return { success: true };
+  return { success: true, comment: commentData };
 }
 
 export async function markHelpdeskTicketSeenByAgent({
@@ -496,6 +518,8 @@ export async function markHelpdeskTicketSeenByAgent({
     return { error: error.message };
   }
 
+  revalidatePath('/');
+  revalidatePath('/management');
   revalidatePath(`/${locale}/management`);
   return { success: true };
 }
@@ -522,9 +546,12 @@ export async function updateHelpdeskTicketStatusQuick({
   }
 
   const supabaseAdmin = createAdminClient();
+  const actorUserId = toSafeUuid(user.id);
+  const actorEmail = user.email || 'support@pradojob.com';
+
   const { error: updateError } = await supabaseAdmin
     .from('helpdesk_tickets')
-    .update({ status: normalizedStatus })
+    .update({ status: normalizedStatus, updated_at: new Date().toISOString() })
     .eq('id', normalizedTicketId);
 
   if (updateError) {
@@ -535,11 +562,13 @@ export async function updateHelpdeskTicketStatusQuick({
     ticket_id: normalizedTicketId,
     event_type: 'status_changed',
     event_note: `Status changed to ${normalizedStatus} from helpdesk inbox.`,
-    actor_user_id: user.id,
-    actor_email: user.email || null,
+    actor_user_id: actorUserId,
+    actor_email: actorEmail,
     metadata: { status: normalizedStatus, source: 'helpdesk_inbox' },
   });
 
+  revalidatePath('/');
+  revalidatePath('/management');
   revalidatePath(`/${locale}/management`);
 
   return { success: true };

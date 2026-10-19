@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Search, ChevronRight, HelpCircle } from 'lucide-react';
+import { Search, ChevronRight, HelpCircle } from 'lucide-react';
 import { getHowToPlaybooks, HowToPlaybook } from '@/lib/helpdeskHowTo';
 
 interface HelpdeskHowToAssistantProps {
@@ -22,12 +22,9 @@ export default function HelpdeskHowToAssistant({ locale = 'en' }: HelpdeskHowToA
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-indigo-600" />
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Management & Support Playbooks</h3>
-            <p className="text-xs text-slate-500">Quick how-to guides and ready-to-send responses for subscriber support.</p>
-          </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Management & Support Playbooks</h3>
+          <p className="text-xs text-slate-500">Quick how-to guides and ready-to-send responses for subscriber support.</p>
         </div>
 
         <div className="relative w-full sm:w-64">

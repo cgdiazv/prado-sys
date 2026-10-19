@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { SubscriberRecord } from '@/app/actions/get-subscribers';
 import { updateUserPlan } from '@/app/actions/update-user-plan';
 import { X, CheckCircle2, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
@@ -9,7 +10,7 @@ interface ChangePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
   subscriber: SubscriberRecord | null;
-  onPlanUpdated?: () => void;
+  onPlanUpdated?: (newPlan: string) => void;
 }
 
 const JOBS_PLAN_OPTIONS = [
@@ -48,6 +49,7 @@ export default function ChangePlanModal({
   subscriber,
   onPlanUpdated,
 }: ChangePlanModalProps) {
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +96,12 @@ export default function ChangePlanModal({
     } else {
       setSuccessMsg(res.message || 'Plan updated successfully!');
       if (onPlanUpdated) {
-        onPlanUpdated();
+        onPlanUpdated(selectedPlan);
       }
+      router.refresh();
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 900);
     }
   };
 

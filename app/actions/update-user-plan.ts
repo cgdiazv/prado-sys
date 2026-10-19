@@ -57,17 +57,33 @@ export async function updateUserPlan(input: UpdatePlanInput): Promise<UpdatePlan
           .eq('id', orgId);
 
         if (orgErr) {
-          return { success: false, error: orgErr.message };
+          console.warn('Could not update org by orgId:', orgErr.message);
         }
-      } else {
-        const { error: ownerErr } = await jobsAdmin
+      }
+
+      // Check if user owns an organization by owner_id
+      const { data: ownerOrg } = await jobsAdmin
+        .from('organizations')
+        .select('id')
+        .eq('owner_id', userId)
+        .maybeSingle();
+
+      if (ownerOrg?.id) {
+        await jobsAdmin
           .from('organizations')
           .update({ subscription_status: newPlan })
-          .eq('owner_id', userId);
+          .eq('id', ownerOrg.id);
+      } else if (!orgId) {
+        // If user has no organization at all, create one for them so they retain their plan
+        const { data: userAuth } = await jobsAdmin.auth.admin.getUserById(userId);
+        const userEmail = userAuth?.user?.email || 'User';
+        const defaultName = userEmail.split('@')[0] || 'User';
 
-        if (ownerErr) {
-          console.warn('Could not update org by owner_id:', ownerErr.message);
-        }
+        await jobsAdmin.from('organizations').insert({
+          name: `${defaultName}'s Workspace`,
+          owner_id: userId,
+          subscription_status: newPlan,
+        });
       }
 
       // 2. Also update user metadata in Auth table

@@ -52,16 +52,16 @@ export async function getSubscribers(): Promise<SubscriberRecord[]> {
       records.push(
         ...jobsRes.value.data.users.map((u) => {
           const org = jobsOrgsByOwner.get(u.id);
-          const planStatus = org?.subscription_status || 'trial';
+          const planStatus = org?.subscription_status || (u.user_metadata?.plan as string) || 'trial';
           return {
             id: u.id,
             email: u.email,
-            name: org?.name || null,
+            name: org?.name || (u.user_metadata?.full_name as string) || (u.user_metadata?.name as string) || null,
             app: 'Jobs' as const,
             createdAt: u.created_at,
             status: (u.banned_until ? 'suspended' : 'active') as 'active' | 'suspended',
             lastSignIn: u.last_sign_in_at || null,
-            details: org?.name ? `${org.name} (${planStatus})` : u.role || 'Auth User',
+            details: org?.name ? `${org.name} (${planStatus})` : (u.user_metadata?.plan ? `Plan: ${u.user_metadata.plan}` : u.role || 'Auth User'),
             plan: planStatus,
             orgId: org?.id || null,
           };
