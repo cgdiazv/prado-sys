@@ -63,106 +63,210 @@ interface PresetMessage {
   text: string;
 }
 
-const PRESET_MESSAGES: PresetMessage[] = [
-  // Greetings / Saludos
-  {
-    id: 'greet-standard',
-    category: 'greetings',
-    categoryLabel: 'Saludo',
-    title: 'Saludo formal',
-    text: 'Hola, gracias por comunicarte con el equipo de soporte de Prado Systems. ¿En qué podemos ayudarte hoy?',
-  },
-  {
-    id: 'greet-personal',
-    category: 'greetings',
-    categoryLabel: 'Saludo',
-    title: 'Presentación agente',
-    text: 'Hola, mi nombre es Carlos del equipo de soporte. ¿Cómo te puedo ayudar?',
-  },
-  {
-    id: 'greet-welcome',
-    category: 'greetings',
-    categoryLabel: 'Saludo',
-    title: 'Bienvenida',
-    text: '¡Hola! Bienvenido a Prado Systems. Estamos atentos a tus consultas para brindarte la mejor asistencia.',
-  },
+type PresetLanguage = 'es' | 'en';
 
-  // In-progress & Follow-up / Seguimiento
-  {
-    id: 'prog-review',
-    category: 'in_progress',
-    categoryLabel: 'Seguimiento',
-    title: 'En revisión',
-    text: 'Estamos revisando tu caso en este momento. Te daremos una actualización en unos minutos, por favor permanece en línea.',
-  },
-  {
-    id: 'prog-screenshot',
-    category: 'in_progress',
-    categoryLabel: 'Seguimiento',
-    title: 'Solicitar captura',
-    text: '¿Podrías por favor compartirnos una captura de pantalla o más detalles del mensaje que visualizas en pantalla?',
-  },
-  {
-    id: 'prog-db-check',
-    category: 'in_progress',
-    categoryLabel: 'Seguimiento',
-    title: 'Verificando en sistema',
-    text: 'Estamos consultando los registros en la base de datos de Prado para verificar tu configuración. Danos un momento por favor.',
-  },
-  {
-    id: 'prog-escalate',
-    category: 'in_progress',
-    categoryLabel: 'Seguimiento',
-    title: 'Escalamiento técnico',
-    text: 'Hemos derivado tu consulta a nuestro equipo técnico especializado. Te contactaremos por este medio en cuanto tengamos novedades.',
-  },
+const PRESET_MESSAGES: Record<PresetLanguage, PresetMessage[]> = {
+  es: [
+    // Greetings / Saludos
+    {
+      id: 'greet-standard',
+      category: 'greetings',
+      categoryLabel: 'Saludo',
+      title: 'Saludo formal',
+      text: 'Hola, gracias por comunicarte con el equipo de soporte de Prado Systems. ¿En qué podemos ayudarte hoy?',
+    },
+    {
+      id: 'greet-personal',
+      category: 'greetings',
+      categoryLabel: 'Saludo',
+      title: 'Presentación agente',
+      text: 'Hola, mi nombre es Carlos del equipo de soporte. ¿Cómo te puedo ayudar?',
+    },
+    {
+      id: 'greet-welcome',
+      category: 'greetings',
+      categoryLabel: 'Saludo',
+      title: 'Bienvenida',
+      text: '¡Hola! Bienvenido a Prado Systems. Estamos atentos a tus consultas para brindarte la mejor asistencia.',
+    },
 
-  // Resolution / Solución
-  {
-    id: 'res-fixed',
-    category: 'resolution',
-    categoryLabel: 'Solución',
-    title: 'Problema solucionado',
-    text: 'El inconveniente ha sido resuelto exitosamente. ¿Podrías confirmar si ya puedes ingresar y operar con normalidad?',
-  },
-  {
-    id: 'res-plan-applied',
-    category: 'resolution',
-    categoryLabel: 'Solución',
-    title: 'Cambio de plan aplicado',
-    text: 'Hemos aplicado los cambios a tu suscripción y plan en Prado Systems. Por favor refresca tu sesión para verificarlo.',
-  },
-  {
-    id: 'res-cache',
-    category: 'resolution',
-    categoryLabel: 'Solución',
-    title: 'Recargar sesión / caché',
-    text: 'Por favor intenta recargar la página (Ctrl + F5 o Cmd + Shift + R) o cerrar y volver a iniciar sesión para actualizar los cambios.',
-  },
+    // In-progress & Follow-up / Seguimiento
+    {
+      id: 'prog-review',
+      category: 'in_progress',
+      categoryLabel: 'Seguimiento',
+      title: 'En revisión',
+      text: 'Estamos revisando tu caso en este momento. Te daremos una actualización en unos minutos, por favor permanece en línea.',
+    },
+    {
+      id: 'prog-screenshot',
+      category: 'in_progress',
+      categoryLabel: 'Seguimiento',
+      title: 'Solicitar captura',
+      text: '¿Podrías por favor compartirnos una captura de pantalla o más detalles del mensaje que visualizas en pantalla?',
+    },
+    {
+      id: 'prog-db-check',
+      category: 'in_progress',
+      categoryLabel: 'Seguimiento',
+      title: 'Verificando en sistema',
+      text: 'Estamos consultando los registros en la base de datos de Prado para verificar tu configuración. Danos un momento por favor.',
+    },
+    {
+      id: 'prog-escalate',
+      category: 'in_progress',
+      categoryLabel: 'Seguimiento',
+      title: 'Escalamiento técnico',
+      text: 'Hemos derivado tu consulta a nuestro equipo técnico especializado. Te contactaremos por este medio en cuanto tengamos novedades.',
+    },
 
-  // Closure / Cierre
-  {
-    id: 'close-goodbye',
-    category: 'closure',
-    categoryLabel: 'Cierre',
-    title: 'Cierre cordial',
-    text: 'Nos alegra haberte ayudado. Damos por concluido este ticket de soporte. ¡Que tengas un excelente día!',
-  },
-  {
-    id: 'close-anything-else',
-    category: 'closure',
-    categoryLabel: 'Cierre',
-    title: '¿Algo adicional?',
-    text: '¿Hay alguna otra consulta o requerimiento en el que te podamos colaborar antes de cerrar este ticket?',
-  },
-  {
-    id: 'close-feedback',
-    category: 'closure',
-    categoryLabel: 'Cierre',
-    title: 'Agradecimiento final',
-    text: 'Gracias por comunicarte con Prado Systems. Estamos a tu disposición siempre que lo necesites. ¡Hasta pronto!',
-  },
-];
+    // Resolution / Solución
+    {
+      id: 'res-fixed',
+      category: 'resolution',
+      categoryLabel: 'Solución',
+      title: 'Problema solucionado',
+      text: 'El inconveniente ha sido resuelto exitosamente. ¿Podrías confirmar si ya puedes ingresar y operar con normalidad?',
+    },
+    {
+      id: 'res-plan-applied',
+      category: 'resolution',
+      categoryLabel: 'Solución',
+      title: 'Cambio de plan aplicado',
+      text: 'Hemos aplicado los cambios a tu suscripción y plan en Prado Systems. Por favor refresca tu sesión para verificarlo.',
+    },
+    {
+      id: 'res-cache',
+      category: 'resolution',
+      categoryLabel: 'Solución',
+      title: 'Recargar sesión / caché',
+      text: 'Por favor intenta recargar la página (Ctrl + F5 o Cmd + Shift + R) o cerrar y volver a iniciar sesión para actualizar los cambios.',
+    },
+
+    // Closure / Cierre
+    {
+      id: 'close-goodbye',
+      category: 'closure',
+      categoryLabel: 'Cierre',
+      title: 'Cierre cordial',
+      text: 'Nos alegra haberte ayudado. Damos por concluido este ticket de soporte. ¡Que tengas un excelente día!',
+    },
+    {
+      id: 'close-anything-else',
+      category: 'closure',
+      categoryLabel: 'Cierre',
+      title: '¿Algo adicional?',
+      text: '¿Hay alguna otra consulta o requerimiento en el que te podamos colaborar antes de cerrar este ticket?',
+    },
+    {
+      id: 'close-feedback',
+      category: 'closure',
+      categoryLabel: 'Cierre',
+      title: 'Agradecimiento final',
+      text: 'Gracias por comunicarte con Prado Systems. Estamos a tu disposición siempre que lo necesites. ¡Hasta pronto!',
+    },
+  ],
+  en: [
+    // Greetings
+    {
+      id: 'en-greet-standard',
+      category: 'greetings',
+      categoryLabel: 'Greeting',
+      title: 'Formal greeting',
+      text: 'Hello, thank you for contacting Prado Systems support. How can we help you today?',
+    },
+    {
+      id: 'en-greet-personal',
+      category: 'greetings',
+      categoryLabel: 'Greeting',
+      title: 'Agent introduction',
+      text: 'Hello, my name is Carlos from the support team. How can I assist you?',
+    },
+    {
+      id: 'en-greet-welcome',
+      category: 'greetings',
+      categoryLabel: 'Greeting',
+      title: 'Welcome message',
+      text: 'Hello! Welcome to Prado Systems. We are ready to help with any inquiries you have.',
+    },
+
+    // In-progress & Follow-up
+    {
+      id: 'en-prog-review',
+      category: 'in_progress',
+      categoryLabel: 'Follow-up',
+      title: 'Under review',
+      text: 'We are reviewing your case right now. We will provide an update in a few minutes, please stay tuned.',
+    },
+    {
+      id: 'en-prog-screenshot',
+      category: 'in_progress',
+      categoryLabel: 'Follow-up',
+      title: 'Request screenshot',
+      text: 'Could you please share a screenshot or more details of what you are seeing on your screen?',
+    },
+    {
+      id: 'en-prog-db-check',
+      category: 'in_progress',
+      categoryLabel: 'Follow-up',
+      title: 'Checking system records',
+      text: 'We are checking the Prado database records to verify your configuration. Please give us a moment.',
+    },
+    {
+      id: 'en-prog-escalate',
+      category: 'in_progress',
+      categoryLabel: 'Follow-up',
+      title: 'Technical escalation',
+      text: 'We have escalated your inquiry to our engineering team. We will reach back out here as soon as there is an update.',
+    },
+
+    // Resolution
+    {
+      id: 'en-res-fixed',
+      category: 'resolution',
+      categoryLabel: 'Resolution',
+      title: 'Issue resolved',
+      text: 'The issue has been resolved. Could you please confirm if you can now log in and operate as expected?',
+    },
+    {
+      id: 'en-res-plan-applied',
+      category: 'resolution',
+      categoryLabel: 'Resolution',
+      title: 'Plan change applied',
+      text: 'We have updated your subscription and plan in Prado Systems. Please refresh your session to see the changes.',
+    },
+    {
+      id: 'en-res-cache',
+      category: 'resolution',
+      categoryLabel: 'Resolution',
+      title: 'Reload / Clear cache',
+      text: 'Please try doing a hard refresh (Ctrl + F5 or Cmd + Shift + R) or logging out and back in to apply the changes.',
+    },
+
+    // Closure
+    {
+      id: 'en-close-goodbye',
+      category: 'closure',
+      categoryLabel: 'Closure',
+      title: 'Polite wrap-up',
+      text: 'Glad we could assist you! We will now close this support ticket. Have a wonderful day!',
+    },
+    {
+      id: 'en-close-anything-else',
+      category: 'closure',
+      categoryLabel: 'Closure',
+      title: 'Anything else?',
+      text: 'Is there anything else we can help you with before we close this ticket?',
+    },
+    {
+      id: 'en-close-feedback',
+      category: 'closure',
+      categoryLabel: 'Closure',
+      title: 'Final thanks',
+      text: 'Thank you for contacting Prado Systems. Feel free to reach out anytime you need assistance. See you soon!',
+    },
+  ],
+};
 
 interface HelpdeskInboxProps {
   tickets?: HelpdeskTicket[];
@@ -177,7 +281,7 @@ interface HelpdeskInboxProps {
   locale?: string;
 }
 
-export default function HelpdeskInbox({ tickets: directTickets, comments: directComments, events: directEvents, initialData }: HelpdeskInboxProps) {
+export default function HelpdeskInbox({ tickets: directTickets, comments: directComments, events: directEvents, initialData, locale }: HelpdeskInboxProps) {
   const [tickets, setTickets] = useState<HelpdeskTicket[]>(directTickets || initialData?.tickets || []);
   const [comments, setComments] = useState<TicketComment[]>(directComments || initialData?.comments || []);
   const [events, setEvents] = useState<TicketEvent[]>(directEvents || initialData?.events || []);
@@ -191,6 +295,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Presets state
+  const [presetLang, setPresetLang] = useState<PresetLanguage>(locale === 'en' ? 'en' : 'es');
   const [presetCategory, setPresetCategory] = useState<string>('all');
   const [presetSearch, setPresetSearch] = useState<string>('');
   const [lastInsertedId, setLastInsertedId] = useState<string | null>(null);
@@ -262,7 +367,8 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   const activeComments = activeTicket ? comments.filter((c) => c.ticket_id === activeTicket.id) : [];
 
   // Filter presets
-  const filteredPresets = PRESET_MESSAGES.filter((p) => {
+  const currentPresets = PRESET_MESSAGES[presetLang] || PRESET_MESSAGES.es;
+  const filteredPresets = currentPresets.filter((p) => {
     const matchesCategory = presetCategory === 'all' || p.category === presetCategory;
     const matchesSearch =
       !presetSearch.trim() ||
@@ -477,12 +583,41 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
         <div className="p-3 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-800">Respuestas Rápidas</span>
+              <span className="text-xs font-bold text-slate-800">
+                {presetLang === 'es' ? 'Respuestas Rápidas' : 'Quick Replies'}
+              </span>
               <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-mono">
                 {filteredPresets.length}
               </span>
             </div>
-            <span className="text-[10px] text-slate-400">Clic para insertar</span>
+
+            {/* Language Selector: ES / EN */}
+            <div className="inline-flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setPresetLang('es')}
+                className={`px-1.5 py-0.5 rounded font-medium transition cursor-pointer ${
+                  presetLang === 'es'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Respuestas en Español"
+              >
+                ES
+              </button>
+              <button
+                type="button"
+                onClick={() => setPresetLang('en')}
+                className={`px-1.5 py-0.5 rounded font-medium transition cursor-pointer ${
+                  presetLang === 'en'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Quick replies in English"
+              >
+                EN
+              </button>
+            </div>
           </div>
 
           {/* Search Presets */}
@@ -492,7 +627,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
               type="text"
               value={presetSearch}
               onChange={(e) => setPresetSearch(e.target.value)}
-              placeholder="Buscar respuesta rápida..."
+              placeholder={presetLang === 'es' ? 'Buscar respuesta rápida...' : 'Search quick reply...'}
               className="w-full text-xs pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
             />
           </div>
@@ -500,11 +635,11 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
           {/* Category Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px]">
             {[
-              { id: 'all', label: 'Todos' },
-              { id: 'greetings', label: 'Saludos' },
-              { id: 'in_progress', label: 'Seguimiento' },
-              { id: 'resolution', label: 'Solución' },
-              { id: 'closure', label: 'Cierre' },
+              { id: 'all', label: presetLang === 'es' ? 'Todos' : 'All' },
+              { id: 'greetings', label: presetLang === 'es' ? 'Saludos' : 'Greetings' },
+              { id: 'in_progress', label: presetLang === 'es' ? 'Seguimiento' : 'Follow-up' },
+              { id: 'resolution', label: presetLang === 'es' ? 'Solución' : 'Resolution' },
+              { id: 'closure', label: presetLang === 'es' ? 'Cierre' : 'Closure' },
             ].map((cat) => (
               <button
                 key={cat.id}
@@ -525,7 +660,9 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
         <div className="divide-y divide-slate-100 overflow-y-auto max-h-[550px] flex-1 p-2 space-y-2">
           {filteredPresets.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-400">
-              No hay respuestas que coincidan con la búsqueda.
+              {presetLang === 'es'
+                ? 'No hay respuestas que coincidan con la búsqueda.'
+                : 'No replies match your search.'}
             </div>
           ) : (
             filteredPresets.map((preset) => {
@@ -569,17 +706,17 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
                           ? 'text-emerald-700 bg-emerald-50 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
-                      title="Insertar en la caja de texto"
+                      title={presetLang === 'es' ? 'Insertar en la caja de texto' : 'Insert into composer'}
                     >
                       {isRecentlyInserted ? (
                         <>
                           <Check className="h-3 w-3 text-emerald-600" />
-                          <span>¡Insertado!</span>
+                          <span>{presetLang === 'es' ? '¡Insertado!' : 'Inserted!'}</span>
                         </>
                       ) : (
                         <>
                           <CornerDownLeft className="h-3 w-3 text-slate-400 group-hover:text-slate-600" />
-                          <span>Insertar</span>
+                          <span>{presetLang === 'es' ? 'Insertar' : 'Insert'}</span>
                         </>
                       )}
                     </button>
@@ -589,10 +726,10 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
                       onClick={() => handleSendPresetDirectly(preset)}
                       disabled={isSubmitting || !activeTicket}
                       className="text-[10px] font-medium text-sky-700 hover:text-sky-900 hover:bg-sky-50 px-1.5 py-0.5 rounded transition flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                      title="Enviar directamente al cliente"
+                      title={presetLang === 'es' ? 'Enviar directamente al cliente' : 'Send directly to customer'}
                     >
                       <Send className="h-2.5 w-2.5" />
-                      <span>Enviar</span>
+                      <span>{presetLang === 'es' ? 'Enviar' : 'Send'}</span>
                     </button>
                   </div>
                 </div>
