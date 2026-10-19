@@ -11,7 +11,6 @@ import {
   Filter,
   UserCheck,
   RefreshCw,
-  Sparkles,
   Search,
   Check,
   CornerDownLeft,
@@ -474,11 +473,10 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
       </div>
 
       {/* Presets / Quick Replies Column */}
-      <div className="w-full md:w-64 lg:w-72 border-r border-slate-200 flex flex-col bg-slate-50/40 shrink-0">
+      <div className="w-full md:w-80 lg:w-[350px] border-r border-slate-200 flex flex-col bg-slate-50/40 shrink-0">
         <div className="p-3 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
               <span className="text-xs font-bold text-slate-800">Presets</span>
               <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-mono">
                 {filteredPresets.length}
