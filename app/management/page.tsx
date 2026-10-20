@@ -7,6 +7,7 @@ import GeneralInternalTicketModal from '@/components/management/GeneralInternalT
 import {
   createHelpdeskTicket,
   updateSubscriberAccount,
+  getHelpdeskInboxSnapshot,
 } from './actions';
 
 type OrganizationRow = {
@@ -80,35 +81,7 @@ export default async function PradoManagementPage({
     throw new Error(organizationsError.message);
   }
 
-  const [ticketsResult, commentsResult, eventsResult] = await Promise.all([
-    supabaseAdmin
-      .from('helpdesk_tickets')
-      .select('id, organization_id, subject, description, priority, status, assignee_name, assignee_email, requested_by_email, escalated_from, unread_for_agent_count, unread_for_user_count, waiting_on, last_comment_at, last_comment_author_email, created_at, updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(200),
-    supabaseAdmin
-      .from('helpdesk_ticket_comments')
-      .select('id, ticket_id, author_user_id, author_email, comment, created_at')
-      .order('created_at', { ascending: true })
-      .limit(2000),
-    supabaseAdmin
-      .from('helpdesk_ticket_events')
-      .select('id, ticket_id, event_type, event_note, actor_email, created_at')
-      .order('created_at', { ascending: false })
-      .limit(2000),
-  ]);
-
-  if (ticketsResult.error) {
-    throw new Error(ticketsResult.error.message);
-  }
-
-  if (commentsResult.error) {
-    throw new Error(commentsResult.error.message);
-  }
-
-  if (eventsResult.error) {
-    throw new Error(eventsResult.error.message);
-  }
+  const helpdeskSnapshot = await getHelpdeskInboxSnapshot(locale);
 
   const rows = (organizations || []) as OrganizationRow[];
   const ownerIds = Array.from(new Set(rows.map((row) => row.owner_id).filter(Boolean))) as string[];
@@ -367,10 +340,10 @@ export default async function PradoManagementPage({
             <HelpdeskInbox
               locale={locale}
               initialData={{
-                organizations: rows.map((row) => ({ id: row.id, name: row.name || 'Unnamed organization' })),
-                tickets: (ticketsResult.data || []) as any,
-                comments: (commentsResult.data || []) as any,
-                events: (eventsResult.data || []) as any,
+                organizations: helpdeskSnapshot.organizations,
+                tickets: helpdeskSnapshot.tickets as any,
+                comments: helpdeskSnapshot.comments as any,
+                events: helpdeskSnapshot.events as any,
               }}
             />
           </div>

@@ -76,7 +76,14 @@ async function requireManagementSession(locale: string = 'en') {
 }
 
 
-async function getAdminClientForTicket(ticketId: string) {
+async function getAdminClientForTicket(ticketId: string, preferredSource?: string | null) {
+  if (preferredSource === 'commerce') {
+    return { client: commerceAdmin, isCommerce: true };
+  }
+  if (preferredSource === 'primary') {
+    return { client: createAdminClient(), isCommerce: false };
+  }
+
   try {
     const { data } = await commerceAdmin
       .from('helpdesk_tickets')
@@ -85,25 +92,27 @@ async function getAdminClientForTicket(ticketId: string) {
       .maybeSingle();
 
     if (data?.id) {
-      return commerceAdmin;
+      return { client: commerceAdmin, isCommerce: true };
     }
   } catch (err) {
     // Fallback to default
   }
 
-  return createAdminClient();
+  return { client: createAdminClient(), isCommerce: false };
 }
 
 async function applyTicketMessageState({
   ticketId,
   role,
   authorEmail,
+  source,
 }: {
   ticketId: string;
   role: TicketMessageRole;
   authorEmail: string | null;
+  source?: string | null;
 }) {
-  const supabaseAdmin = createAdminClient();
+  const { client: supabaseAdmin } = await getAdminClientForTicket(ticketId, source);
   const { data: current, error: currentError } = await supabaseAdmin
     .from('helpdesk_tickets')
     .select('id, unread_for_agent_count, unread_for_user_count')
@@ -277,7 +286,7 @@ export async function updateHelpdeskTicket(formData: FormData) {
     managementRedirect(locale, 'error', 'Invalid ticket priority.', undefined, redirectTo);
   }
 
-  const supabaseAdmin = createAdminClient();
+  const { client: supabaseAdmin, isCommerce } = await getAdminClientForTicket(ticketId);
 
   const { error: updateError } = await supabaseAdmin
     .from('helpdesk_tickets')
@@ -297,7 +306,7 @@ export async function updateHelpdeskTicket(formData: FormData) {
     ticket_id: ticketId,
     event_type: 'updated',
     event_note: 'Ticket details updated from management console.',
-    actor_user_id: toSafeUuid(user.id),
+    actor_user_id: isCommerce ? null : toSafeUuid(user.id),
     actor_email: user.email || 'support@pradojob.com',
     metadata: {
       status,
@@ -327,8 +336,9 @@ export async function addHelpdeskTicketComment(formData: FormData) {
     return { error: 'Comment cannot be empty.' };
   }
 
-  const supabaseAdmin = createAdminClient();
-  const authorUserId = toSafeUuid(user.id);
+  const source = String(formData.get('source') || '').trim() || null;
+  const { client: supabaseAdmin, isCommerce } = await getAdminClientForTicket(ticketId, source);
+  const authorUserId = isCommerce ? null : toSafeUuid(user.id);
   const authorEmail = user.email || 'support@pradojob.com';
 
   const { data: commentData, error: commentError } = await supabaseAdmin
@@ -350,6 +360,7 @@ export async function addHelpdeskTicketComment(formData: FormData) {
     ticketId,
     role: 'agent',
     authorEmail,
+    source: isCommerce ? 'commerce' : 'primary',
   });
 
   await supabaseAdmin.from('helpdesk_ticket_events').insert({
@@ -480,6 +491,7 @@ export async function getHelpdeskInboxSnapshot(locale = 'en') {
       last_comment_author_email: ticket.last_comment_author_email || null,
       created_at: ticket.created_at,
       updated_at: ticket.updated_at,
+      source: commerceTicketIds.includes(ticket.id) ? 'commerce' : 'primary',
     })),
     comments: allComments.map((comment: any) => ({
       id: comment.id,
@@ -521,8 +533,8 @@ export async function sendHelpdeskAgentReply({
     return { error: 'Comment cannot be empty.' };
   }
 
-  const supabaseAdmin = createAdminClient();
-  const authorUserId = toSafeUuid(user.id);
+  const { client: supabaseAdmin, isCommerce } = await getAdminClientForTicket(normalizedTicketId);
+  const authorUserId = isCommerce ? null : toSafeUuid(user.id);
   const authorEmail = user.email || 'support@pradojob.com';
 
   const { data: commentData, error: commentError } = await supabaseAdmin
@@ -544,6 +556,7 @@ export async function sendHelpdeskAgentReply({
     ticketId: normalizedTicketId,
     role: 'agent',
     authorEmail,
+    source: isCommerce ? 'commerce' : 'primary',
   });
 
   await supabaseAdmin.from('helpdesk_ticket_events').insert({
@@ -575,7 +588,7 @@ export async function markHelpdeskTicketSeenByAgent({
     return { error: 'Ticket ID is required.' };
   }
 
-  const supabaseAdmin = createAdminClient();
+  const { client: supabaseAdmin } = await getAdminClientForTicket(normalizedTicketId);
   const { error } = await supabaseAdmin
     .from('helpdesk_tickets')
     .update({ unread_for_agent_count: 0, updated_at: new Date().toISOString() })
@@ -612,8 +625,8 @@ export async function updateHelpdeskTicketStatusQuick({
     return { error: 'Invalid ticket status.' };
   }
 
-  const supabaseAdmin = createAdminClient();
-  const actorUserId = toSafeUuid(user.id);
+  const { client: supabaseAdmin, isCommerce } = await getAdminClientForTicket(normalizedTicketId);
+  const actorUserId = isCommerce ? null : toSafeUuid(user.id);
   const actorEmail = user.email || 'support@pradojob.com';
 
   const { error: updateError } = await supabaseAdmin

@@ -35,6 +35,7 @@ export interface HelpdeskTicket {
   last_comment_author_email?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  source?: 'primary' | 'commerce';
 }
 
 export interface TicketComment {
@@ -421,6 +422,9 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
       formData.append('ticketId', activeTicket.id);
       formData.append('comment', messageText);
       formData.append('role', 'agent');
+      if (activeTicket.source) {
+        formData.append('source', activeTicket.source);
+      }
 
       const result = await addHelpdeskTicketComment(formData);
       if (result && 'error' in result && result.error) {
@@ -475,6 +479,9 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
       const formData = new FormData();
       formData.append('ticketId', activeTicket.id);
       formData.append('status', newStatus);
+      if (activeTicket.source) {
+        formData.append('source', activeTicket.source);
+      }
       await updateHelpdeskTicketState(formData);
     } catch (err) {
       console.error('Failed to update status', err);
@@ -564,7 +571,14 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
                     {ticket.requested_by_email || 'System user'}
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                    <span className="capitalize">{ticket.status.replace('_', ' ')}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="capitalize">{ticket.status.replace('_', ' ')}</span>
+                      {ticket.source === 'commerce' && (
+                        <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                          Commerce
+                        </span>
+                      )}
+                    </span>
                     {ticket.last_comment_at ? (
                       <span>{new Date(ticket.last_comment_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     ) : ticket.created_at ? (
@@ -746,7 +760,14 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
             {/* Header */}
             <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50">
               <div>
-                <h3 className="text-base font-bold text-slate-900">{activeTicket.subject}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">{activeTicket.subject}</h3>
+                  {activeTicket.source === 'commerce' && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300">
+                      Commerce
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Requested by: <span className="font-mono text-slate-700">{activeTicket.requested_by_email || 'N/A'}</span>
                 </p>
