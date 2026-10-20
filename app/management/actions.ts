@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabaseServer';
-import { createAdminClient } from '@/lib/supabaseAdmin';
+import { createAdminClient, commerceAdmin } from '@/lib/supabaseAdmin';
 import { isPradoManagementUser } from '@/lib/pradoManagement';
 
 const ALLOWED_SUBSCRIPTION_STATUS = new Set([
@@ -73,6 +73,25 @@ async function requireManagementSession(locale: string = 'en') {
     email: 'support@pradojob.com',
     role: 'management_agent',
   };
+}
+
+
+async function getAdminClientForTicket(ticketId: string) {
+  try {
+    const { data } = await commerceAdmin
+      .from('helpdesk_tickets')
+      .select('id')
+      .eq('id', ticketId)
+      .maybeSingle();
+
+    if (data?.id) {
+      return commerceAdmin;
+    }
+  } catch (err) {
+    // Fallback to default
+  }
+
+  return createAdminClient();
 }
 
 async function applyTicketMessageState({
@@ -358,44 +377,92 @@ export async function getHelpdeskInboxSnapshot(locale = 'en') {
 
   const supabaseAdmin = createAdminClient();
 
-  const [{ data: orgRows }, { data: ticketRows, error: ticketsError }] = await Promise.all([
-    supabaseAdmin.from('organizations').select('id, name'),
-    supabaseAdmin
-      .from('helpdesk_tickets')
+  const [primaryRes, commerceRes] = await Promise.allSettled([
+    Promise.all([
+      supabaseAdmin.from('organizations').select('id, name'),
+      supabaseAdmin
+        .from('helpdesk_tickets')
         .select('id, organization_id, subject, description, priority, status, assignee_name, assignee_email, requested_by_email, escalated_from, created_at, updated_at, unread_for_agent_count, unread_for_user_count, waiting_on, last_comment_at, last_comment_author_email')
-      .order('updated_at', { ascending: false })
-      .limit(200),
+        .order('updated_at', { ascending: false })
+        .limit(200),
+    ]),
+    Promise.all([
+      commerceAdmin.from('MerchantUser').select('id, company, name, email'),
+      commerceAdmin
+        .from('helpdesk_tickets')
+        .select('id, organization_id, subject, description, priority, status, assignee_name, assignee_email, requested_by_email, escalated_from, created_at, updated_at, unread_for_agent_count, unread_for_user_count, waiting_on, last_comment_at, last_comment_author_email')
+        .order('updated_at', { ascending: false })
+        .limit(200),
+    ]),
   ]);
 
-  if (ticketsError) {
-    return { error: ticketsError.message };
-  }
+  const primaryOrgs = primaryRes.status === 'fulfilled' && primaryRes.value[0]?.data ? primaryRes.value[0].data : [];
+  const primaryTickets = primaryRes.status === 'fulfilled' && primaryRes.value[1]?.data ? primaryRes.value[1].data : [];
 
-  const tickets = ticketRows || [];
-  const ticketIds = tickets.map((ticket: any) => ticket.id);
+  const commerceMerchants = commerceRes.status === 'fulfilled' && commerceRes.value[0]?.data ? commerceRes.value[0].data : [];
+  const commerceTickets = commerceRes.status === 'fulfilled' && commerceRes.value[1]?.data ? commerceRes.value[1].data : [];
 
-  const [commentsResult, eventsResult] = ticketIds.length
-    ? await Promise.all([
-        supabaseAdmin
-          .from('helpdesk_ticket_comments')
-          .select('id, ticket_id, author_user_id, author_email, comment, created_at')
-          .in('ticket_id', ticketIds)
-          .order('created_at', { ascending: true }),
-        supabaseAdmin
-          .from('helpdesk_ticket_events')
-          .select('id, ticket_id, event_type, event_note, actor_email, created_at')
-          .in('ticket_id', ticketIds)
-          .order('created_at', { ascending: false }),
-      ])
-    : [{ data: [], error: null }, { data: [], error: null }];
+  const commerceOrgs = (commerceMerchants || []).map((m: any) => ({
+    id: m.id,
+    name: m.company ? `${m.company} (Commerce)` : (m.name ? `${m.name} (Commerce)` : (m.email || 'Prado Commerce')),
+  }));
 
-  if (commentsResult.error || eventsResult.error) {
-    return { error: commentsResult.error?.message || eventsResult.error?.message || 'Failed to load helpdesk details.' };
-  }
+  const allOrganizations = [
+    ...(primaryOrgs || []).map((org: any) => ({ id: org.id, name: org.name || 'Unnamed organization' })),
+    ...commerceOrgs,
+  ];
+
+  const primaryTicketIds = primaryTickets.map((t: any) => t.id);
+  const commerceTicketIds = commerceTickets.map((t: any) => t.id);
+
+  const [primaryDetails, commerceDetails] = await Promise.all([
+    primaryTicketIds.length
+      ? Promise.all([
+          supabaseAdmin
+            .from('helpdesk_ticket_comments')
+            .select('id, ticket_id, author_user_id, author_email, comment, created_at')
+            .in('ticket_id', primaryTicketIds)
+            .order('created_at', { ascending: true }),
+          supabaseAdmin
+            .from('helpdesk_ticket_events')
+            .select('id, ticket_id, event_type, event_note, actor_email, created_at')
+            .in('ticket_id', primaryTicketIds)
+            .order('created_at', { ascending: false }),
+        ])
+      : [{ data: [] }, { data: [] }],
+    commerceTicketIds.length
+      ? Promise.all([
+          commerceAdmin
+            .from('helpdesk_ticket_comments')
+            .select('id, ticket_id, author_user_id, author_email, comment, created_at')
+            .in('ticket_id', commerceTicketIds)
+            .order('created_at', { ascending: true }),
+          commerceAdmin
+            .from('helpdesk_ticket_events')
+            .select('id, ticket_id, event_type, event_note, actor_email, created_at')
+            .in('ticket_id', commerceTicketIds)
+            .order('created_at', { ascending: false }),
+        ])
+      : [{ data: [] }, { data: [] }],
+  ]);
+
+  const allTickets = [...primaryTickets, ...commerceTickets].sort(
+    (a: any, b: any) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+  );
+
+  const allComments = [
+    ...(primaryDetails[0]?.data || []),
+    ...(commerceDetails[0]?.data || []),
+  ].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const allEvents = [
+    ...(primaryDetails[1]?.data || []),
+    ...(commerceDetails[1]?.data || []),
+  ].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   return {
-    organizations: (orgRows || []).map((org: any) => ({ id: org.id, name: org.name || 'Unnamed organization' })),
-    tickets: tickets.map((ticket: any) => ({
+    organizations: allOrganizations,
+    tickets: allTickets.map((ticket: any) => ({
       id: ticket.id,
       organization_id: ticket.organization_id || null,
       subject: ticket.subject,
@@ -414,7 +481,7 @@ export async function getHelpdeskInboxSnapshot(locale = 'en') {
       created_at: ticket.created_at,
       updated_at: ticket.updated_at,
     })),
-    comments: (commentsResult.data || []).map((comment: any) => ({
+    comments: allComments.map((comment: any) => ({
       id: comment.id,
       ticket_id: comment.ticket_id,
       author_user_id: comment.author_user_id || null,
@@ -422,7 +489,7 @@ export async function getHelpdeskInboxSnapshot(locale = 'en') {
       comment: comment.comment,
       created_at: comment.created_at,
     })),
-    events: (eventsResult.data || []).map((event: any) => ({
+    events: allEvents.map((event: any) => ({
       id: event.id,
       ticket_id: event.ticket_id,
       event_type: event.event_type,
