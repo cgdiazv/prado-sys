@@ -14,6 +14,7 @@ import {
   Search,
   Check,
   CornerDownLeft,
+  RotateCcw,
 } from 'lucide-react';
 import { addHelpdeskTicketComment, updateHelpdeskTicketState, getHelpdeskInboxSnapshot } from '@/app/management/actions';
 
@@ -294,6 +295,7 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Presets state
   const [presetLang, setPresetLang] = useState<PresetLanguage>(locale === 'en' ? 'en' : 'es');
@@ -471,7 +473,8 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!activeTicket) return;
+    if (!activeTicket || isUpdatingStatus) return;
+    setIsUpdatingStatus(true);
     setTickets((prev) =>
       prev.map((t) => (t.id === activeTicket.id ? { ...t, status: newStatus } : t))
     );
@@ -485,6 +488,8 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
       await updateHelpdeskTicketState(formData);
     } catch (err) {
       console.error('Failed to update status', err);
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -772,19 +777,54 @@ export default function HelpdeskInbox({ tickets: directTickets, comments: direct
                   Requested by: <span className="font-mono text-slate-700">{activeTicket.requested_by_email || 'N/A'}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-slate-500 font-medium">Status:</label>
-                <select
-                  value={activeTicket.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="text-xs border border-slate-300 rounded px-2 py-1 bg-white font-medium text-slate-800"
-                >
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="blocked">Blocked</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-slate-500 font-medium">Status:</label>
+                  <select
+                    value={activeTicket.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    disabled={isUpdatingStatus}
+                    className="text-xs border border-slate-300 rounded px-2 py-1 bg-white font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:opacity-60"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('closed')}
+                    disabled={isUpdatingStatus || activeTicket.status === 'closed'}
+                    title="Close this case"
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border transition shadow-xs ${
+                      activeTicket.status === 'closed'
+                        ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:border-rose-300 active:scale-95'
+                    }`}
+                  >
+                    <CheckCircle className={`h-3.5 w-3.5 ${activeTicket.status === 'closed' ? 'text-slate-400' : 'text-rose-600'}`} />
+                    <span>Close Case</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('open')}
+                    disabled={isUpdatingStatus || activeTicket.status === 'open'}
+                    title="Reopen this case"
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border transition shadow-xs ${
+                      activeTicket.status === 'open'
+                        ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 active:scale-95'
+                    }`}
+                  >
+                    <RotateCcw className={`h-3.5 w-3.5 ${activeTicket.status === 'open' ? 'text-slate-400' : 'text-emerald-600'}`} />
+                    <span>Reopen Case</span>
+                  </button>
+                </div>
               </div>
             </div>
 
