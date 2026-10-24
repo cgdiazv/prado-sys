@@ -10,10 +10,79 @@ export interface UpdatePlanInput {
   orgId?: string | null;
 }
 
+export interface DeleteAccountInput {
+  userId: string;
+  app: 'Jobs' | 'Fleet' | 'Commerce' | 'ERP';
+  orgId?: string | null;
+}
+
 export interface UpdatePlanResponse {
   success: boolean;
   error?: string;
   message?: string;
+}
+
+export interface DeleteAccountResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
+export async function deleteUserAccount(input: DeleteAccountInput): Promise<DeleteAccountResponse> {
+  const { userId, app, orgId } = input;
+
+  if (!userId || !app) {
+    return { success: false, error: 'User ID and App are required.' };
+  }
+
+  try {
+    if (app === 'Jobs') {
+      if (orgId) {
+        await jobsAdmin.from('organizations').delete().eq('id', orgId);
+      }
+
+      await jobsAdmin.from('organizations').delete().eq('owner_id', userId);
+      try {
+        await jobsAdmin.auth.admin.deleteUser(userId);
+      } catch (authErr) {
+        console.warn('Could not delete Jobs auth user:', authErr);
+      }
+    } else if (app === 'Fleet') {
+      await fleetAdmin.from('User').delete().eq('id', userId);
+      try {
+        await fleetAdmin.auth.admin.deleteUser(userId);
+      } catch (authErr) {
+        console.warn('Could not delete Fleet auth user:', authErr);
+      }
+    } else if (app === 'Commerce') {
+      await commerceAdmin.from('MerchantUser').delete().eq('id', userId);
+      try {
+        await commerceAdmin.auth.admin.deleteUser(userId);
+      } catch (authErr) {
+        console.warn('Could not delete Commerce auth user:', authErr);
+      }
+    } else if (app === 'ERP') {
+      await erpAdmin.from('User').delete().eq('id', userId);
+      try {
+        await erpAdmin.auth.admin.deleteUser(userId);
+      } catch (authErr) {
+        console.warn('Could not delete ERP auth user:', authErr);
+      }
+    }
+
+    revalidatePath('/');
+    revalidatePath('/management');
+    revalidatePath('/[locale]/management', 'page');
+
+    return {
+      success: true,
+      message: `Successfully deleted ${app} account.`,
+    };
+  } catch (err: unknown) {
+    console.error('Error deleting user account:', err);
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred while deleting the account.';
+    return { success: false, error: message };
+  }
 }
 
 export async function updateUserPlan(input: UpdatePlanInput): Promise<UpdatePlanResponse> {
@@ -130,8 +199,9 @@ export async function updateUserPlan(input: UpdatePlanInput): Promise<UpdatePlan
       success: true,
       message: `Successfully updated ${app} user plan to ${newPlan}`,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error updating user plan:', err);
-    return { success: false, error: err?.message || 'An unexpected error occurred.' };
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+    return { success: false, error: message };
   }
 }

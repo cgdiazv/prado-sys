@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Users, MessageSquare, BookOpen, Search, ShieldCheck, ArrowRight, Edit3, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { Users, MessageSquare, BookOpen, Search, ShieldCheck, Ticket, Edit3, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import HelpdeskInbox, { HelpdeskTicket, TicketComment, TicketEvent } from './HelpdeskInbox';
 import HelpdeskHowToAssistant from './HelpdeskHowToAssistant';
 import GeneralInternalTicketModal from './GeneralInternalTicketModal';
 import ChangePlanModal from './ChangePlanModal';
 import { SubscriberRecord } from '@/app/actions/get-subscribers';
+import { deleteUserAccount } from '@/app/actions/update-user-plan';
 
 interface DashboardTabsProps {
   subscribers: SubscriberRecord[];
@@ -19,20 +21,19 @@ interface DashboardTabsProps {
 
 type SortField = 'user' | 'app' | 'plan' | 'status' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
+type AppFilter = 'all' | 'Jobs' | 'Fleet' | 'Commerce' | 'ERP';
 
 export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTabsProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'subscribers' | 'helpdesk' | 'how-to'>('subscribers');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscriber, setEditingSubscriber] = useState<SubscriberRecord | null>(null);
-  const [selectedApp, setSelectedApp] = useState<'all' | 'Jobs' | 'Fleet' | 'Commerce' | 'ERP'>('all');
+  const [deletingSubscriberId, setDeletingSubscriberId] = useState<string | null>(null);
+  const [selectedApp, setSelectedApp] = useState<AppFilter>('all');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [subscribersList, setSubscribersList] = useState<SubscriberRecord[]>(subscribers);
-
-  useEffect(() => {
-    setSubscribersList(subscribers);
-  }, [subscribers]);
 
   const handlePlanUpdated = (userId: string, app: string, newPlan: string) => {
     setSubscribersList((prev) =>
@@ -106,6 +107,32 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
       setSortField(field);
       setSortDirection(field === 'createdAt' ? 'desc' : 'asc');
     }
+  };
+
+  const handleDeleteSubscriber = async (user: SubscriberRecord) => {
+    const confirmed = window.confirm(
+      `Delete the ${user.app} account for ${user.name || user.email || 'this user'}? This cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingSubscriberId(`${user.app}-${user.id}`);
+    const response = await deleteUserAccount({
+      userId: user.id,
+      app: user.app,
+      orgId: user.orgId,
+    });
+    setDeletingSubscriberId(null);
+
+    if (!response.success) {
+      window.alert(response.error || 'Failed to delete account.');
+      return;
+    }
+
+    setSubscribersList((prev) => prev.filter((sub) => !(sub.id === user.id && sub.app === user.app)));
+    router.refresh();
   };
 
   const renderSortIcon = (field: SortField) => {
@@ -186,7 +213,7 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
               <div className="relative w-full sm:w-56">
                 <select
                   value={selectedApp}
-                  onChange={(e) => setSelectedApp(e.target.value as any)}
+                  onChange={(e) => setSelectedApp(e.target.value as AppFilter)}
                   className="w-full py-2 px-3 border border-slate-300 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white text-slate-800 cursor-pointer shadow-xs"
                 >
                   <option value="all">Todas las apps ({appCounts.all})</option>
@@ -322,18 +349,31 @@ export default function DashboardTabs({ subscribers, helpdeskData }: DashboardTa
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => setEditingSubscriber(user)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-200 transition cursor-pointer"
+                          aria-label={`Change plan for ${user.name || user.email || 'subscriber'}`}
+                          title="Change plan"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer"
                         >
-                          <Edit3 className="h-3.5 w-3.5 text-slate-500" />
-                          Change Plan
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubscriber(user)}
+                          aria-label={`Delete account for ${user.name || user.email || 'subscriber'}`}
+                          title={deletingSubscriberId === `${user.app}-${user.id}` ? 'Deleting...' : 'Delete account'}
+                          disabled={deletingSubscriberId === `${user.app}-${user.id}`}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-60 transition cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
 
                         <button
                           onClick={() => setActiveTab('helpdesk')}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                          aria-label={`Create ticket for ${user.name || user.email || 'subscriber'}`}
+                          title="Create ticket"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer"
                         >
-                          Create Ticket
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          <Ticket className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
